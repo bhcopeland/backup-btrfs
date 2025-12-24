@@ -71,25 +71,37 @@ sync_directory() {
     fi
 
     if [[ ${#btrfs_files[@]} -gt 0 ]]; then
-        # Only sync oldest and newest backups to gdrive
+        # Sync newest + 3 monthly backups (first of each month for last 3 months)
         local newest="${btrfs_files[0]}"
-        local oldest="${btrfs_files[-1]}"
-
         local newest_name=$(basename "$newest")
-        local oldest_name=$(basename "$oldest")
 
-        if [[ "$newest_name" == "$oldest_name" ]]; then
-            log "Syncing directory: $subdir (1 backup: $newest_name)"
-        else
-            log "Syncing directory: $subdir (oldest: $oldest_name, newest: $newest_name)"
-        fi
-
-        # Build filter arguments (use --filter instead of --include/--exclude)
+        # Build filter arguments
         local filter_args=(--filter "+ $newest_name")
-        if [[ "$newest_name" != "$oldest_name" ]]; then
-            filter_args+=(--filter "+ $oldest_name")
-        fi
+
+        # Get current and last 3 months (YYYYMM format)
+        local current_month=$(date +%Y%m)
+        local month_1=$(date -d '1 month ago' +%Y%m)
+        local month_2=$(date -d '2 months ago' +%Y%m)
+        local month_3=$(date -d '3 months ago' +%Y%m)
+
+        # Find first backup of each month
+        local monthly_count=0
+        for month in $current_month $month_1 $month_2 $month_3; do
+            for file in "${btrfs_files[@]}"; do
+                local fname=$(basename "$file")
+                if [[ "$fname" =~ _${month}[0-9]{2}_ ]]; then
+                    # Found first backup of this month
+                    if [[ "$fname" != "$newest_name" ]]; then
+                        filter_args+=(--filter "+ $fname")
+                        ((monthly_count++))
+                    fi
+                    break
+                fi
+            done
+        done
+
         filter_args+=(--filter "- *")
+        log "Syncing directory: $subdir (newest + $monthly_count monthly backups)"
 
         # Sync only the selected backups (deletes old ones from gdrive)
         rclone sync "$source_path/" "$remote_path/" \
@@ -112,36 +124,28 @@ sync_directory() {
                 return 1
             }
     elif [[ ${#zfs_full[@]} -gt 0 || ${#zfs_incremental[@]} -gt 0 ]]; then
-        # ZFS backups: keep oldest+newest full + oldest+newest incrementals
+        # ZFS backups: keep oldest full + last 3 incrementals
         local filter_args=()
         local keep_info=""
 
-        # Include oldest and newest full backups
+        # Include oldest full backup (the base)
         if [[ ${#zfs_full[@]} -gt 0 ]]; then
-            local newest_full=$(basename "${zfs_full[0]}")
             local oldest_full=$(basename "${zfs_full[-1]}")
-
-            filter_args+=(--filter "+ $newest_full")
-            if [[ "$newest_full" != "$oldest_full" ]]; then
-                filter_args+=(--filter "+ $oldest_full")
-                keep_info="full: $oldest_full + $newest_full"
-            else
-                keep_info="full: $oldest_full"
-            fi
+            filter_args+=(--filter "+ $oldest_full")
+            keep_info="full: $oldest_full"
         fi
 
-        # Include oldest and newest incrementals
+        # Include last 3 incrementals
         if [[ ${#zfs_incremental[@]} -gt 0 ]]; then
-            local newest_inc=$(basename "${zfs_incremental[0]}")
-            local oldest_inc=$(basename "${zfs_incremental[-1]}")
-
-            filter_args+=(--filter "+ $newest_inc")
-            if [[ "$newest_inc" != "$oldest_inc" ]]; then
-                filter_args+=(--filter "+ $oldest_inc")
-                keep_info="$keep_info, inc: $oldest_inc + $newest_inc"
-            else
-                keep_info="$keep_info, inc: $oldest_inc"
-            fi
+            local inc_count=0
+            local inc_list=""
+            for ((i=0; i<${#zfs_incremental[@]} && inc_count<3; i++)); do
+                local inc_name=$(basename "${zfs_incremental[i]}")
+                filter_args+=(--filter "+ $inc_name")
+                inc_list="$inc_list $inc_name"
+                ((inc_count++))
+            done
+            keep_info="$keep_info, inc: last $inc_count"
         fi
 
         filter_args+=(--filter "- *")

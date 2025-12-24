@@ -58,24 +58,28 @@ backup-btrfs/
 
 ## Deployment
 
-### Desktop
+**Quick Deploy (all hosts):**
 ```bash
-sudo cp desktop/simple-btrfs-backup.sh /usr/local/bin/
-sudo cp desktop/btrfs-backup.{service,timer} /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now btrfs-backup.timer
+./deploy.sh
 ```
 
-### Proxmox Server (homebox)
+**Deploy to specific hosts:**
 ```bash
-scp proxmox/zfs-only-backup.sh root@homebox:/root/
+./deploy.sh desktop    # Deploy to local desktop only
+./deploy.sh seedbox    # Deploy to seedbox only
+./deploy.sh proxmox    # Deploy to Proxmox only
 ```
 
-### Seedbox
+**Verify deployment:**
 ```bash
-scp seedbox/rclone-chunked-backup.sh bhcopeland@192.168.0.241:/tmp/seedbox/
-scp seedbox/rclone-backup.{service,timer} bhcopeland@192.168.0.241:/tmp/
-ssh bhcopeland@192.168.0.241 'sudo cp /tmp/rclone-backup.* /etc/systemd/system/ && sudo systemctl daemon-reload'
+# Desktop
+systemctl status btrfs-backup.timer
+
+# Seedbox
+ssh bhcopeland@192.168.0.242 'sudo systemctl status rclone-backup.timer'
+
+# Proxmox
+ssh root@192.168.0.240 'systemctl status zfs-backup.timer'
 ```
 
 ## Storage Layout

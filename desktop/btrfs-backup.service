@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=root
-ExecStart=/home/ben/GitHub/backup-btrfs/simple-btrfs-backup.sh
+User=ben
+ExecStart=/usr/local/bin/simple-btrfs-backup.sh
 StandardOutput=journal
 StandardError=journal
