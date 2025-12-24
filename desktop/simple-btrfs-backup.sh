@@ -52,11 +52,37 @@ backup_subvolume() {
 
     echo "Backup completed for $subvol"
 
-    # Keep only last 8 remote backup files
+    # Smart cleanup: keep last 8 + first of each month for 3 months
     ssh "$SSH_USER@$SSH_HOST" "
         cd $REMOTE_DIR/$name
-        ls -t *.btrfs.zst 2>/dev/null | tail -n +9 | xargs -r rm -f
-        echo 'Cleaned old remote backups, keeping latest 8'
+
+        # Get current date and 3 months ago
+        current_month=\$(date +%Y%m)
+        month_1=\$(date -d '1 month ago' +%Y%m)
+        month_2=\$(date -d '2 months ago' +%Y%m)
+        month_3=\$(date -d '3 months ago' +%Y%m)
+
+        # Mark files to keep (latest 8)
+        ls -t *.btrfs.zst *.btrfs 2>/dev/null | head -8 > /tmp/keep_files.txt
+
+        # Mark first backup of each month for last 3 months
+        for month in \$current_month \$month_1 \$month_2 \$month_3; do
+            ls -1 *_\${month}*.btrfs.zst *_\${month}*.btrfs 2>/dev/null | head -1 >> /tmp/keep_files.txt || true
+        done
+
+        # Sort and dedupe the keep list
+        sort -u /tmp/keep_files.txt > /tmp/keep_files_uniq.txt
+
+        # Delete files not in keep list
+        for file in *.btrfs.zst *.btrfs 2>/dev/null; do
+            if ! grep -qx \"\$file\" /tmp/keep_files_uniq.txt; then
+                echo \"Removing old backup: \$file\"
+                rm -f \"\$file\"
+            fi
+        done
+
+        rm -f /tmp/keep_files*.txt
+        echo \"Cleaned old backups, keeping latest 8 + monthly for 3 months\"
     " || true
 
     # Keep only last 8 local snapshots

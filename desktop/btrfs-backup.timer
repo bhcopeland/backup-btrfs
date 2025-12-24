@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Btrfs backup weekly
+Requires=btrfs-backup.service
+
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

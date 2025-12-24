@@ -94,6 +94,7 @@ sync_directory() {
         # Sync only the selected backups (deletes old ones from gdrive)
         rclone sync "$source_path/" "$remote_path/" \
             "${filter_args[@]}" \
+            --delete-excluded \
             --transfers 1 \
             --checkers 1 \
             --buffer-size 4M \
@@ -149,6 +150,7 @@ sync_directory() {
         # Sync only the selected backups (deletes old ones from gdrive)
         rclone sync "$source_path/" "$remote_path/" \
             "${filter_args[@]}" \
+            --delete-excluded \
             --transfers 1 \
             --checkers 1 \
             --buffer-size 4M \

@@ -9,25 +9,42 @@ Unified backup solution for btrfs and ZFS with encrypted offsite storage on Goog
 - `zfs-only-backup.sh`: Adjust `ZFS_DATASETS` and `BACKUP_BASE` for your setup
 - `rclone-chunked-backup.sh`: Set `SOURCE_DIR` and `RCLONE_REMOTE`
 
-## Active Scripts
+## Directory Structure
 
-### Local Backup Scripts
+Scripts are organized by which host they run on:
 
-**simple-btrfs-backup.sh**
-- Backs up btrfs `/home` subvolume to ZFS server (192.168.0.241)
+```
+backup-btrfs/
+├── desktop/      # Scripts for desktop (btrfs source)
+├── proxmox/      # Scripts for Proxmox server
+└── seedbox/      # Scripts for seedbox (cloud sync)
+```
+
+## Scripts by Host
+
+### Desktop (btrfs source)
+
+**desktop/simple-btrfs-backup.sh**
+- Backs up btrfs `/home` subvolume to seedbox ZFS storage
 - Creates compressed `.btrfs.zst` files using zstd
 - Supports incremental backups
-- Keeps 8 local snapshots + 8 remote backups
+- Keeps 8 recent + first of month for 3 months
 
-**zfs-only-backup.sh** (runs on Proxmox server)
+**Systemd units:**
+- `btrfs-backup.service` - Runs the backup
+- `btrfs-backup.timer` - Weekly schedule
+
+### Proxmox (homebox server)
+
+**proxmox/zfs-only-backup.sh**
 - Backs up ZFS datasets: dpool/Photos, rpool/opt_data, container subvols
 - Creates compressed `.zfs.zst` files using zstd
 - Keeps 2 full backups + 10 incrementals + 5 snapshots
 - Stores to `/dpool/backup/zfs-snapshots/`
 
-### Offsite Sync (runs on seedbox)
+### Seedbox (cloud sync VM)
 
-**rclone-chunked-backup.sh**
+**seedbox/rclone-chunked-backup.sh**
 - Syncs `/mnt/backup` to Google Drive (encrypted with rclone crypt)
 - Smart filtering: keeps only oldest + newest backups
 - Btrfs: oldest + newest `.btrfs.zst`
@@ -35,28 +52,30 @@ Unified backup solution for btrfs and ZFS with encrypted offsite storage on Goog
 - Rate limited to avoid Google API limits
 - Excludes Proxmox backups (dump/)
 
-### Systemd Units
-
-**rclone-backup.service**
-- Runs rclone-chunked-backup.sh
-- Restarts on failure with 1-hour delay
-- Memory limited to 2GB
-
-**rclone-backup.timer**
-- Triggers daily at 4 AM
-- Enable: `systemctl enable --now rclone-backup.timer`
+**Systemd units:**
+- `rclone-backup.service` - Runs the sync
+- `rclone-backup.timer` - Daily at 4 AM
 
 ## Deployment
 
+### Desktop
+```bash
+sudo cp desktop/simple-btrfs-backup.sh /usr/local/bin/
+sudo cp desktop/btrfs-backup.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now btrfs-backup.timer
+```
+
 ### Proxmox Server (homebox)
 ```bash
-scp zfs-only-backup.sh root@homebox:/root/
+scp proxmox/zfs-only-backup.sh root@homebox:/root/
 ```
 
 ### Seedbox
 ```bash
-scp rclone-chunked-backup.sh bhcopeland@192.168.0.241:/tmp/seedbox/
-scp rclone-backup.{service,timer} bhcopeland@192.168.0.241:/tmp/
+scp seedbox/rclone-chunked-backup.sh bhcopeland@192.168.0.241:/tmp/seedbox/
+scp seedbox/rclone-backup.{service,timer} bhcopeland@192.168.0.241:/tmp/
+ssh bhcopeland@192.168.0.241 'sudo cp /tmp/rclone-backup.* /etc/systemd/system/ && sudo systemctl daemon-reload'
 ```
 
 ## Storage Layout
