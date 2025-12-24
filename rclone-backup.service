@@ -1,0 +1,28 @@
+[Unit]
+Description=Rclone backup to Google Drive
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/root/rclone-chunked-backup.sh
+StandardOutput=journal
+StandardError=journal
+
+# Restart on failure (with longer delay for rate limits)
+Restart=on-failure
+RestartSec=3600
+StartLimitBurst=5
+StartLimitIntervalSec=86400
+
+# Environment
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/root
+
+# Timeout (4 hours for large backups)
+TimeoutStartSec=14400
+
+# Memory limits to prevent OOM
+MemoryMax=2G
+MemorySwapMax=1G

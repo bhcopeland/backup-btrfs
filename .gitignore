@@ -1,0 +1,15 @@
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+*.swp
+*~
+
+# Local test files
+test/
+temp/

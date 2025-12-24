@@ -1,0 +1,11 @@
+[Unit]
+Description=Btrfs to ZFS Backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/home/ben/GitHub/backup-btrfs/simple-btrfs-backup.sh
+StandardOutput=journal
+StandardError=journal

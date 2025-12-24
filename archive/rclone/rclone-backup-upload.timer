@@ -1,0 +1,12 @@
+[Unit]
+Description=Upload backups to Google Drive daily
+Requires=rclone-backup-upload.service
+
+[Timer]
+# Run daily at 3 AM (after weekly backup completes)
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run ZFS backup weekly
+Requires=zfs-backup.service
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=2h
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,19 @@
+[Unit]
+Description=Upload encrypted backups to Google Drive
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/home/ben/GitHub/backup-btrfs/rclone-backup-upload.sh
+StandardOutput=journal
+StandardError=journal
+
+# Restart on failure after 1 hour
+Restart=on-failure
+RestartSec=3600
+
+# Set environment variables
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/root
